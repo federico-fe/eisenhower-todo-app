@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Eisenhower Matrix - To-Do List</title>
+    <meta name="description" content="Organizza le tue attività con la Matrice di Eisenhower">
+    <meta name="theme-color" content="#3B82F6">
+
+```
+<!-- PWA Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Eisenhower ToDo">
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    
+    .touch-action-pan-y { touch-action: pan-y; }
+    .active\:scale-95:active { transform: scale(0.95); }
+    .active\:scale-110:active { transform: scale(1.1); }
+    
+    @media (display-mode: standalone) {
+        body { padding-top: env(safe-area-inset-top); }
+    }
+    
+    /* Scroll personalizzato */
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    
+    /* Animazioni touch */
+    .task-item {
+        transition: transform 0.1s ease-out;
+    }
+    
+    .task-item:active {
+        transform: scale(0.98);
+    }
+</style>
+```
+
+</head>
+<body>
+    <div id="root"></div>
+
+```
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Icone SVG personalizzate per ridurre dipendenze
+    const Icons = {
+        Plus: () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        ),
+        Check: () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9,11 12,14 22,4"></polyline>
+                <path d="m21,12c0,4.97 -4.03,9 -9,9s-9,-4.03 -9,-9s4.03,-9 9,-9c1.94,0 3.73,0.62 5.19,1.67"></path>
+            </svg>
+        ),
+        Square: () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            </svg>
+        ),
+        Trash: () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3,6 5,6 21,6"></polyline>
+                <path d="m19,6v14a2,2 0,0 1,-2,2H7a2,2 0,0 1,-2,-2V6m3,0V4a2,2 0,0 1,2,-2h4a2,2 0,0 1,2,2v2"></path>
+            </svg>
+        ),
+        Edit: () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m12,20h9"></path>
+                <path d="m16.5,3.5a2.121,2.121 0,0 1,3,3L7,19l-4,1 1,-4L16.5,3.5z"></path>
+            </svg>
+        ),
+        Calendar: () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        ),
+        Clock: () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+        ),
+        Bell: () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="m13.73,21c-0.32,0.56 -0.9,0.94 -1.56,0.94s-1.24,-0.38 -1.56,-0.94"></path>
+            </svg>
+        ),
+        Stats: () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="20" x2="12" y2="10"></line>
+                <line x1="18" y1="20" x2="18" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="16"></line>
+            </svg>
+        ),
+        Save: () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m19,21H5a2,2 0,0 1,-2,-2V5a2,2 0,0 1,2,-2H16l3,3v13a2,2 0,0 1,-2,2z"></path>
+                <polyline points="17,21 17,13 7,13 7,21"></polyline>
+                <polyline points="7,3 7,8 15,8"></polyline>
+            </svg>
+        ),
+        X: () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        )
+    };
+
+    const EisenhowerTodoMobile = () => {
+        const [tasks, setTasks] = useState(() => {
+            const saved = localStorage.getItem('eisenhower-tasks');
+            return saved ? JSON.parse(saved) : [];
+        });
+        
+        const [showAddForm, setShowAddForm] = useState(false);
+        const [showStats, setShowStats] = useState(false);
+        const [activeCategory, setActiveCategory] = useState('all');
+        const [newTask, setNewTask] = useState({
+            title: '',
+            description: '',
+            category: 'urgent-important',
+            dueDate: '',
+            dueTime: '',
+            reminder: false
+        });
+        const [editingTask, setEditingTask] = useState(null);
+        const [currentTime, setCurrentTime] = useState(new Date());
+
+        // Salva tasks nel localStorage
+        useEffect(() => {
+            localStorage.setItem('eisenhower-tasks', JSON.stringify(tasks));
+        }, [tasks]);
+
+        // Aggiorna l'orario ogni minuto
+        useEffect(() => {
+            const timer = setInterval(() => {
+                setCurrentTime(new Date());
+            }, 60000);
+            return () => clearInterval(timer);
+        }, []);
+
+        // Sistema di promemoria
+        useEffect(() => {
+            const checkReminders = () => {
+                const now = new Date();
+                tasks.forEach(task => {
+                    if (task.reminder && task.dueDate && task.dueTime && !task.completed && !task.reminderShown) {
+                        const taskDateTime = new Date(`${task.dueDate}T${task.dueTime}`);
+                        const timeDiff = taskDateTime.getTime() - now.getTime();
+                        
+                        if (timeDiff > 0 && timeDiff <= 30 * 60 * 1000) {
+                            if ('Notification' in window && Notification.permission === 'granted') {
+                                new Notification('⏰ Promemoria Attività', {
+                                    body: `"${task.title}" tra ${Math.ceil(timeDiff / 60000)} minuti!`,
+                                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📋</text></svg>'
+                                });
+                            } else {
+                                alert(`⏰ "${task.title}" tra ${Math.ceil(timeDiff / 60000)} min!`);
+                            }
+                            setTasks(prev => prev.map(t => 
+                                t.id === task.id ? { ...t, reminderShown: true } : t
+                            ));
+                        }
+                    }
+                });
+            };
+
+            const reminderTimer = setInterval(checkReminders, 60000);
+            return () => clearInterval(reminderTimer);
+        }, [tasks]);
+
+        // Richiedi permessi notifiche
+        useEffect(() => {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }, []);
+
+        const categories = {
+            'urgent-important': {
+                name: 'Urgente + Importante',
+                shortName: 'Critico',
+                color: 'bg-red-500',
+                lightColor: 'bg-red-50',
+                icon: '🔥',
+                description: 'Fai subito'
+            },
+            'important-not-urgent': {
+                name: 'Importante',
+                shortName: 'Pianifica',
+                color: 'bg-blue-500',
+                lightColor: 'bg-blue-50',
+                icon: '📋',
+                description: 'Organizza'
+            },
+            'urgent-not-important': {
+                name: 'Urgente',
+                shortName: 'Delega',
+                color: 'bg-yellow-500',
+                lightColor: 'bg-yellow-50',
+                icon: '⚡',
+                description: 'Veloce'
+            },
+            'not-urgent-not-important': {
+                name: 'Altro',
+                shortName: 'Elimina',
+                color: 'bg-gray-500',
+                lightColor: 'bg-gray-50',
+                icon: '📦',
+                description: 'Forse'
+            }
+        };
+
+        const addTask = () => {
+            if (newTask.title.trim()) {
+                const task = {
+                    id: Date.now(),
+                    ...newTask,
+                    completed: false,
+                    createdAt: new Date().toISOString(),
+                    reminderShown: false
+                };
+                setTasks([...tasks, task]);
+                setNewTask({
+                    title: '',
+                    description: '',
+                    category: 'urgent-important',
+                    dueDate: '',
+                    dueTime: '',
+                    reminder: false
+                });
+                setShowAddForm(false);
+            }
+        };
+
+        const toggleTask = (id) => {
+            setTasks(tasks.map(task => 
+                task.id === id ? { ...task, completed: !task.completed } : task
+            ));
+        };
+
+        const deleteTask = (id) => {
+            setTasks(tasks.filter(task => task.id !== id));
+        };
+
+        const startEditing = (task) => {
+            setEditingTask({ ...task });
+        };
+
+        const saveEdit = () => {
+            setTasks(tasks.map(task => 
+                task.id === editingTask.id ? editingTask : task
+            ));
+            setEditingTask(null);
+        };
+
+        const isOverdue = (task) => {
+            if (!task.dueDate || task.completed) return false;
+            const now = new Date();
+            const dueDateTime = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
+            return dueDateTime < now;
+        };
+
+        const formatDueDate = (date, time) => {
+            if (!date) return '';
+            const dueDate = new Date(`${date}T${time || '00:00'}`);
+            const today = new Date();
+            const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) return 'Oggi';
+            if (diffDays === 1) return 'Domani';
+            if (diffDays === -1) return 'Ieri';
+            if (diffDays < 0) return `${Math.abs(diffDays)}g fa`;
+            return `${diffDays}g`;
+        };
+
+        const getFilteredTasks = () => {
+            if (activeCategory === 'all') return tasks;
+            return tasks.filter(task => task.category === activeCategory);
+        };
+
+        const TaskItem = ({ task }) => (
+            <div className={`task-item relative bg-white rounded-xl mb-3 shadow-sm border-l-4 ${
+                isOverdue(task) ? 'border-l-red-500 bg-red-25' : 
+                task.completed ? 'border-l-green-500 bg-green-25' : 
+                `border-l-${categories[task.category].color.split('-')[1]}-500`
+            } transition-all duration-200`}>
+                {editingTask && editingTask.id === task.id ? (
+                    <div className="p-4 space-y-3">
+                        <input
+                            type="text"
+                            value={editingTask.title}
+                            onChange={(e) => setEditingTask({...editingTask, title: e.target.value})}
+                            className="w-full p-3 border border-gray-300 rounded-lg text-lg"
+                            placeholder="Titolo attività"
+                        />
+                        <textarea
+                            value={editingTask.description}
+                            onChange={(e) => setEditingTask({...editingTask, description: e.target.value})}
+                            className="w-full p-3 border border-gray-300 rounded-lg h-20"
+                            placeholder="Descrizione"
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <input
+                                type="date"
+                                value={editingTask.dueDate}
+                                onChange={(e) => setEditingTask({...editingTask, dueDate: e.target.value})}
+                                className="p-3 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                                type="time"
+                                value={editingTask.dueTime}
+                                onChange={(e) => setEditingTask({...editingTask, dueTime: e.target.value})}
+                                className="p-3 border border-gray-300 rounded-lg"
+                            />
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <label className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    checked={editingTask.reminder}
+                                    onChange={(e) => setEditingTask({...editingTask, reminder: e.target.checked})}
+                                    className="w-5 h-5 text-blue-600 rounded"
+                                />
+                                <span className="text-sm">Promemoria</span>
+                            </label>
+                            <div className="flex space-x-3">
+                                <button onClick={saveEdit} className="bg-green-500 text-white p-2 rounded-lg active:scale-110">
+                                    <Icons.Save />
+                                </button>
+                                <button onClick={() => setEditingTask(null)} className="bg-gray-500 text-white p-2 rounded-lg active:scale-110">
+                                    <Icons.X />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-4">
+                        <div className="flex items-start space-x-3">
+                            <button
+                                onClick={() => toggleTask(task.id)}
+                                className={`mt-1 ${task.completed ? 'text-green-500' : 'text-gray-400'} active:scale-110 transition-transform`}
+                            >
+                                {task.completed ? <Icons.Check /> : <Icons.Square />}
+                            </button>
+                            
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <h3 className={`font-semibold text-lg leading-tight ${
+                                            task.completed ? 'line-through text-gray-500' : 'text-gray-800'
+                                        }`}>
+                                            {task.title}
+                                        </h3>
+                                        
+                                        <div className="flex items-center space-x-2 mt-1">
+                                            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                                                {categories[task.category].icon} {categories[task.category].shortName}
+                                            </span>
+                                            {task.reminder && (
+                                                <span className="text-xs text-blue-600">
+                                                    <Icons.Bell />
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {task.description && (
+                                            <p className={`text-sm mt-2 ${task.completed ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {task.description}
+                                            </p>
+                                        )}
+
+                                        {task.dueDate && (
+                                            <div className={`flex items-center space-x-2 mt-2 text-sm ${
+                                                isOverdue(task) ? 'text-red-600 font-medium' : 'text-gray-500'
+                                            }`}>
+                                                <Icons.Calendar />
+                                                <span>{formatDueDate(task.dueDate, task.dueTime)}</span>
+                                                {task.dueTime && (
+                                                    <>
+                                                        <Icons.Clock />
+                                                        <span>{task.dueTime}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center space-x-2 ml-2">
+                                        <button
+                                            onClick={() => startEditing(task)}
+                                            className="text-gray-400 active:text-blue-500 p-2 active:scale-110 transition-all"
+                                        >
+                                            <Icons.Edit />
+                                        </button>
+                                        <button
+                                            onClick={() => deleteTask(task.id)}
+                                            className="text-gray-400 active:text-red-500 p-2 active:scale-110 transition-all"
+                                        >
+                                            <Icons.Trash />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+                {/* Header fisso */}
+                <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-800">Matrice Eisenhower</h1>
+                            <p className="text-xs text-gray-500">{currentTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setShowStats(!showStats)}
+                                className="bg-gray-100 p-2 rounded-lg active:bg-gray-200 active:scale-95"
+                            >
+                                <Icons.Stats />
+                            </button>
+                            <button
+                                onClick={() => setShowAddForm(!showAddForm)}
+                                className="bg-blue-500 text-white p-2 rounded-lg active:bg-blue-600 active:scale-95 shadow-lg"
+                            >
+                                <Icons.Plus />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filtri categoria */}
+                    <div className="flex space-x-2 mt-3 overflow-x-auto pb-2">
+                        <button
+                            onClick={() => setActiveCategory('all')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap active:scale-95 ${
+                                activeCategory === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                            Tutte ({tasks.length})
+                        </button>
+                        {Object.entries(categories).map(([key, cat]) => (
+                            <button
+                                key={key}
+                                onClick={() => setActiveCategory(key)}
+                                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap active:scale-95 ${
+                                    activeCategory === key ? `${cat.color} text-white` : `${cat.lightColor} text-gray-700`
+                                }`}
+                            >
+                                {cat.icon} {cat.shortName} ({tasks.filter(t => t.category === key).length})
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Statistiche espandibili */}
+                {showStats && (
+                    <div className="bg-white mx-4 mt-4 rounded-xl shadow-sm p-4">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <div className="text-2xl font-bold text-green-600">{tasks.filter(t => t.completed).length}</div>
+                                <div className="text-xs text-gray-600">Completate</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-orange-600">{tasks.filter(t => !t.completed).length}</div>
+                                <div className="text-xs text-gray-600">In corso</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-red-600">{tasks.filter(t => isOverdue(t)).length}</div>
+                                <div className="text-xs text-gray-600">Scadute</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-blue-600">{tasks.filter(t => t.reminder && !t.completed).length}</div>
+                                <div className="text-xs text-gray-600">Con promemoria</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Form aggiunta task */}
+                {showAddForm && (
+                    <div className="bg-white mx-4 mt-4 rounded-xl shadow-sm p-4">
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Cosa devi fare?"
+                                value={newTask.title}
+                                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                                className="w-full p-4 border border-gray-300 rounded-xl text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                autoFocus
+                            />
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                {Object.entries(categories).map(([key, cat]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setNewTask({...newTask, category: key})}
+                                        className={`p-3 rounded-xl border-2 text-sm font-medium active:scale-95 ${
+                                            newTask.category === key 
+                                                ? `${cat.color} text-white border-transparent` 
+                                                : `${cat.lightColor} border-gray-200 text-gray-700`
+                                        }`}
+                                    >
+                                        {cat.icon} {cat.shortName}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <textarea
+                                placeholder="Dettagli (opzionale)"
+                                value={newTask.description}
+                                onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                                className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20"
+                            />
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="date"
+                                    value={newTask.dueDate}
+                                    onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                                    className="p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <input
+                                    type="time"
+                                    value={newTask.dueTime}
+                                    onChange={(e) => setNewTask({...newTask, dueTime: e.target.value})}
+                                    className="p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center space-x-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={newTask.reminder}
+                                        onChange={(e) => setNewTask({...newTask, reminder: e.target.checked})}
+                                        className="w-5 h-5 text-blue-600 rounded"
+                                    />
+                                    <span className="text-gray-700">Promemoria 30min prima</span>
+                                </label>
+                            </div>
+
+                            <div className="flex space-x-3">
+                                <button
+                                    onClick={addTask}
+                                    className="flex-1 bg-blue-500 text-white py-4 rounded-xl font-semibold active:bg-blue-600 active:scale-95 transition-all"
+```
